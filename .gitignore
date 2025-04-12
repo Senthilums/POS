@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+
+# VS Code
+.vscode/
+
+# Credentials
+credentials.json
+sales_data.csv
+upi_qr.png

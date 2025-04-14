@@ -4,6 +4,11 @@ import pyqrcode
 from PIL import Image, ImageTk
 import os
 import datetime
+import gspread 
+from oauth2client.service_account import ServiceAccountCredentials
+#from sync_to_sheets import sync_to_google_sheets
+
+
 
 # === Predefined Product Rates ===
 PRODUCT_RATES = {
@@ -28,6 +33,30 @@ def save_to_csv(product, weight, amount, phone):
     with open("sales_data.csv", "a") as f:
         f.write(f"{timestamp},{product},{weight},{amount},{phone}\n")
 
+
+# === Sync to google sheets ===
+def sync_to_google_sheets(product, weight, amount, phone):
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+        client = gspread.authorize(creds)
+
+        spreadsheet_id = "1rNie02jspJlNTy-85JYkOkXMyEiXxDDQ0KsITL987RM"  # Replace this!
+        sheet = client.open_by_key(spreadsheet_id).sheet1
+
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        row = [timestamp, product, weight, amount, phone]
+
+        # Optional: Add header if sheet is empty
+        if not sheet.get_all_values():
+            sheet.append_row(["Timestamp", "Product", "Weight", "Amount", "Phone"])
+
+        sheet.append_row(row)
+        print("✅ Synced to Google Sheets.")
+    except Exception as e:
+        print(f"❌ Google Sheets sync failed: {e}")
+
+
 # === Main GUI ===
 def run_app():
     def calculate_price():
@@ -44,7 +73,9 @@ def run_app():
             amount = round(rate * weight, 2)
             amount_var.set(f"₹{amount}")
             save_to_csv(product, weight, amount, phone)
-
+            print("🔄 Trying to sync data to Google Sheets...")
+            sync_to_google_sheets(product, weight, amount, phone)
+            
             # Show QR
             qr_path = generate_upi_qr(amount)
             qr_img = Image.open(qr_path)
